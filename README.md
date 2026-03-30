@@ -25,6 +25,17 @@ python visualize.py --train
 python visualize.py
 ```
 
+### Continue training from an existing winner
+Resumes evolution seeded from `winner.pkl` — the entire starting population is built from mutated copies of the winner.
+```bash
+python continue.py
+```
+
+Add `--visual` to watch the best agent each generation:
+```bash
+python continue.py --visual
+```
+
 ## Controls (during visualization)
 - `SPACE` — pause/unpause
 - `ESC` — quit
