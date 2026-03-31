@@ -59,15 +59,23 @@ def get_sensors(agent, food_list):
     return sensors
 
 
-def run_simulation(net):
-    """Run one agent's lifetime. Returns fitness score."""
+def run_simulation(net, step_callback=None):
+    """
+    Run one agent's lifetime. Returns fitness score.
+
+    step_callback: optional function called each step with current state dict.
+    Used by the visualizer to draw frames without duplicating simulation logic.
+    Signature: step_callback(state) -> bool  (return False to stop early)
+    State keys: agent, food, energy, fitness, step, trail
+    """
     agent = [random.randint(2, GRID_SIZE - 3), random.randint(2, GRID_SIZE - 3)]
     food = [[random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1)]
             for _ in range(FOOD_COUNT)]
 
     fitness = 0
     energy = INITIAL_ENERGY
-    recent = []  # track last 4 positions for revisit penalty
+    recent = []   # track last 4 positions for revisit penalty
+    trail = []    # last 20 positions for visualizer trail
 
     for step in range(STEPS):
         if energy <= 0 or not food:
@@ -101,6 +109,11 @@ def run_simulation(net):
         if len(recent) > 4:
             recent.pop(0)
 
+        # Update trail for visualizer
+        trail.append((agent[0], agent[1]))
+        if len(trail) > 20:
+            trail.pop(0)
+
         # Check for food
         for f in food[:]:
             if agent[0] == f[0] and agent[1] == f[1]:
@@ -112,6 +125,20 @@ def run_simulation(net):
 
         # Bonus for surviving longer
         fitness += 0.01
+
+        # Call visualizer callback if provided
+        if step_callback is not None:
+            state = {
+                'agent': agent[:],
+                'food': [f[:] for f in food],
+                'energy': energy,
+                'fitness': fitness,
+                'step': step,
+                'trail': list(trail),
+            }
+            keep_going = step_callback(state)
+            if keep_going is False:
+                break
 
     # Penalty for dying early
     if energy <= 0:

@@ -7,12 +7,9 @@ Or train + watch: python visualize.py --train
 import pygame
 import neat
 import pickle
-import random
-import math
 import os
 import sys
-import time
-from simulation import GRID_SIZE, FOOD_COUNT, INITIAL_ENERGY, MOVE_COST, EAT_GAIN, get_sensors
+from simulation import GRID_SIZE, INITIAL_ENERGY
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'forager_config.txt')
 
@@ -94,6 +91,8 @@ def draw_panel(surface, font, small_font, generation, fitness, energy, food_eate
 
 
 def run_visual(net, generation=1, stats=None):
+    from simulation import run_simulation, STEPS
+
     pygame.init()
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("NEAT Foragers")
@@ -101,98 +100,83 @@ def run_visual(net, generation=1, stats=None):
     font = pygame.font.SysFont("monospace", 15)
     small_font = pygame.font.SysFont("monospace", 12)
 
-    from simulation import STEPS
     steps_total = STEPS
+    paused = [False]
+    running = [True]
+    food_eaten = [0]
+    best_fitness = [0.0]
+    prev_fitness = [0.0]
 
-    # Simulation state
-    agent = [random.randint(2, GRID_SIZE - 3), random.randint(2, GRID_SIZE - 3)]
-    food = [[random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1)]
-            for _ in range(FOOD_COUNT)]
-    energy = INITIAL_ENERGY
-    fitness = 0
-    food_eaten = 0
-    step = 0
-    trail = []
-    paused = False
-    species_count = getattr(stats, 'most_fit_genomes', [None])
-    best_fitness = 0.0
-
-    running = True
-    while running and step < steps_total and energy > 0:
+    def step_callback(state):
         clock.tick(FPS)
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                running = False
+                running[0] = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    running = False
+                    running[0] = False
                 elif event.key == pygame.K_SPACE:
-                    paused = not paused
+                    paused[0] = not paused[0]
 
-        if paused:
-            continue
+        if not running[0]:
+            return False  # stop simulation
 
-        # --- Simulation step ---
-        inputs = get_sensors(agent, food)
-        output = net.activate(inputs)
-        action = output.index(max(output))
+        while paused[0]:
+            clock.tick(10)
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running[0] = False
+                    return False
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        running[0] = False
+                        return False
+                    elif event.key == pygame.K_SPACE:
+                        paused[0] = False
 
-        trail.append((agent[0], agent[1]))
-        if len(trail) > 20:
-            trail.pop(0)
+        agent = state['agent']
+        food = state['food']
+        energy = state['energy']
+        fitness = state['fitness']
+        step = state['step']
+        trail = state['trail']
 
-        moves = [(0, -1), (1, 0), (0, 1), (-1, 0)]
-        dx, dy = moves[action]
-        agent[0] = max(0, min(GRID_SIZE - 1, agent[0] + dx))
-        agent[1] = max(0, min(GRID_SIZE - 1, agent[1] + dy))
-        energy -= MOVE_COST
-
-        for f in food[:]:
-            if agent[0] == f[0] and agent[1] == f[1]:
-                food.remove(f)
-                fitness += 10
-                food_eaten += 1
-                energy = min(INITIAL_ENERGY, energy + EAT_GAIN)
-                food.append([random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1)])
-
-        fitness += 0.01
-        step += 1
+        # Count food eaten by tracking fitness jumps of +10
+        if fitness - prev_fitness[0] >= 9.9:
+            food_eaten[0] += 1
+        prev_fitness[0] = fitness
 
         # --- Draw ---
         screen.fill(BG)
 
-        # Grid lines
         for i in range(GRID_SIZE + 1):
             pygame.draw.line(screen, GRID_LINE, (i * CELL_SIZE, 0), (i * CELL_SIZE, HEIGHT))
             pygame.draw.line(screen, GRID_LINE, (0, i * CELL_SIZE), (GRID_SIZE * CELL_SIZE, i * CELL_SIZE))
 
-        # Trail
         for i, (tx, ty) in enumerate(trail):
-            alpha = int(180 * (i / len(trail)))
+            alpha = int(180 * (i / len(trail))) if trail else 0
             s = pygame.Surface((CELL_SIZE, CELL_SIZE), pygame.SRCALPHA)
             s.fill((*AGENT_TRAIL, alpha))
             screen.blit(s, (tx * CELL_SIZE, ty * CELL_SIZE))
 
-        # Food
         for fx, fy in food:
             cx = fx * CELL_SIZE + CELL_SIZE // 2
             cy = fy * CELL_SIZE + CELL_SIZE // 2
             pygame.draw.circle(screen, FOOD_COLOR, (cx, cy), CELL_SIZE // 3)
 
-        # Agent
         ax = agent[0] * CELL_SIZE + CELL_SIZE // 2
         ay = agent[1] * CELL_SIZE + CELL_SIZE // 2
         pygame.draw.circle(screen, AGENT_COLOR, (ax, ay), CELL_SIZE // 2 - 2)
         pygame.draw.circle(screen, (150, 200, 255), (ax, ay), CELL_SIZE // 4)
 
-        # Panel
-        best_fitness = max(best_fitness, fitness)
+        best_fitness[0] = max(best_fitness[0], fitness)
         draw_panel(screen, font, small_font, generation, round(fitness, 1),
-                   energy, food_eaten, step, steps_total, "—", best_fitness)
+                   energy, food_eaten[0], step + 1, steps_total, "—", best_fitness[0])
 
         pygame.display.flip()
 
+    run_simulation(net, step_callback=step_callback)
     pygame.quit()
 
 
