@@ -67,6 +67,7 @@ def run_simulation(net):
 
     fitness = 0
     energy = INITIAL_ENERGY
+    recent = []  # track last 4 positions for revisit penalty
 
     for step in range(STEPS):
         if energy <= 0 or not food:
@@ -86,6 +87,14 @@ def run_simulation(net):
         agent[1] = max(0, min(GRID_SIZE - 1, agent[1] + dy))
 
         energy -= MOVE_COST
+
+        # Punish revisiting a square seen in the last 4 steps
+        pos = tuple(agent)
+        if pos in recent:
+            fitness -= 0.5
+        recent.append(pos)
+        if len(recent) > 4:
+            recent.pop(0)
 
         # Check for food
         for f in food[:]:
