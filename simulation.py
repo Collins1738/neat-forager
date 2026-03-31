@@ -14,6 +14,21 @@ MOVE_COST = 1
 EAT_GAIN = 40
 
 
+def get_wall_sensors(agent):
+    """
+    4 sensors — distance to each wall, normalized 0→1.
+    0 = right at the wall, 1 = far away.
+    Order: N, E, S, W
+    """
+    ax, ay = agent
+    return [
+        ay / GRID_SIZE,                    # N wall (top)
+        (GRID_SIZE - 1 - ax) / GRID_SIZE,  # E wall (right)
+        (GRID_SIZE - 1 - ay) / GRID_SIZE,  # S wall (bottom)
+        ax / GRID_SIZE,                    # W wall (left)
+    ]
+
+
 def get_visited_sensors(agent, visited_list):
     """
     8 directional sensors for recently visited cells.
@@ -124,8 +139,8 @@ def run_simulation(net, step_callback=None):
         if energy <= 0 or not food:
             break
 
-        # Get sensor inputs (8 food + 8 visited = 16 total)
-        inputs = get_sensors(agent, food) + get_visited_sensors(agent, visited)
+        # Get sensor inputs (8 food + 8 visited + 4 walls = 20 total)
+        inputs = get_sensors(agent, food) + get_visited_sensors(agent, visited) + get_wall_sensors(agent)
 
         # Brain decides
         output = net.activate(inputs)

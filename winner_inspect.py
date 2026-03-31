@@ -15,7 +15,8 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'forager_config.txt')
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), 'winner_network.png')
 
 INPUT_LABELS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW',
-                'vN', 'vNE', 'vE', 'vSE', 'vS', 'vSW', 'vW', 'vNW']
+                'vN', 'vNE', 'vE', 'vSE', 'vS', 'vSW', 'vW', 'vNW',
+                'wN', 'wE', 'wS', 'wW']
 OUTPUT_LABELS = ['↑ N', '→ E', '↓ S', '← W']
 
 
