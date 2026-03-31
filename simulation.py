@@ -83,8 +83,13 @@ def run_simulation(net):
         # Move
         moves = [(0, -1), (1, 0), (0, 1), (-1, 0)]
         dx, dy = moves[action]
+        old_x, old_y = agent[0], agent[1]
         agent[0] = max(0, min(GRID_SIZE - 1, agent[0] + dx))
         agent[1] = max(0, min(GRID_SIZE - 1, agent[1] + dy))
+
+        # Punish hitting the wall
+        if agent[0] == old_x and agent[1] == old_y and (dx != 0 or dy != 0):
+            fitness -= 2.0
 
         energy -= MOVE_COST
 
