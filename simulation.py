@@ -14,6 +14,48 @@ MOVE_COST = 1
 EAT_GAIN = 40
 
 
+def get_visited_sensors(agent, visited_list):
+    """
+    8 directional sensors for recently visited cells.
+    Returns 1.0 if a recently visited cell is nearby in that direction, 0 otherwise.
+    Same cone logic as food sensors — agent can "feel" where it's already been.
+    """
+    directions = [
+        (0, -1),   # N
+        (1, -1),   # NE
+        (1, 0),    # E
+        (1, 1),    # SE
+        (0, 1),    # S
+        (-1, 1),   # SW
+        (-1, 0),   # W
+        (-1, -1),  # NW
+    ]
+
+    sensors = []
+    ax, ay = agent
+
+    for dx, dy in directions:
+        closest = float('inf')
+        for vx, vy in visited_list:
+            fdx = vx - ax
+            fdy = vy - ay
+            dist = math.sqrt(fdx**2 + fdy**2)
+            if dist == 0:
+                closest = 0
+                break
+            dot = (fdx / dist) * dx + (fdy / dist) * dy
+            if dot > 0.7:
+                if dist < closest:
+                    closest = dist
+
+        if closest == float('inf'):
+            sensors.append(0.0)
+        else:
+            sensors.append(max(0.0, 1.0 - (closest / GRID_SIZE)))
+
+    return sensors
+
+
 def get_sensors(agent, food_list):
     """
     8 directional sensors — each returns distance to nearest food in that direction.
@@ -74,15 +116,16 @@ def run_simulation(net, step_callback=None):
 
     fitness = 0
     energy = INITIAL_ENERGY
-    recent = []   # track last 4 positions for revisit penalty
-    trail = []    # last 20 positions for visualizer trail
+    recent = []    # track last 4 positions for revisit penalty
+    visited = []   # last 20 positions for visited sensors
+    trail = []     # last 20 positions for visualizer trail
 
     for step in range(STEPS):
         if energy <= 0 or not food:
             break
 
-        # Get sensor inputs
-        inputs = get_sensors(agent, food)
+        # Get sensor inputs (8 food + 8 visited = 16 total)
+        inputs = get_sensors(agent, food) + get_visited_sensors(agent, visited)
 
         # Brain decides
         output = net.activate(inputs)
@@ -97,22 +140,25 @@ def run_simulation(net, step_callback=None):
 
         # Punish hitting the wall
         if agent[0] == old_x and agent[1] == old_y and (dx != 0 or dy != 0):
-            fitness -= 2.0
+            fitness -= 0.2
 
         energy -= MOVE_COST
 
         # Punish revisiting a square seen in the last 4 steps
         pos = tuple(agent)
         if pos in recent:
-            fitness -= 0.5
+            fitness -= 0.2
         recent.append(pos)
         if len(recent) > 4:
             recent.pop(0)
 
-        # Update trail for visualizer
+        # Update trail for visualizer and visited sensors
         trail.append((agent[0], agent[1]))
         if len(trail) > 20:
             trail.pop(0)
+        visited.append((agent[0], agent[1]))
+        if len(visited) > 20:
+            visited.pop(0)
 
         # Check for food
         for f in food[:]:
