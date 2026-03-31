@@ -63,6 +63,8 @@ def draw_panel(surface, font, small_font, generation, fitness, energy, food_eate
     label("Generation", generation)
     label("Step", f"{step}/{steps_total}")
     label("Food eaten", food_eaten, (80, 220, 100))
+    fit_color = (80, 220, 100) if fitness >= 0 else (220, 80, 80)
+    label("Fitness", f"{fitness:.1f}", fit_color)
     label("Best fitness", f"{best_fitness:.1f}", (255, 200, 80))
     label("Species", species_count, small=True)
 
@@ -181,8 +183,9 @@ def run_visual(net, generation=1, stats=None):
 
 
 def watch_winner():
-    if not os.path.exists('winner.pkl'):
-        print("❌ No winner.pkl found. Run: python train.py first")
+    winner = 'winner.pkl'
+    if not os.path.exists(winner):
+        print(f"❌ No {winner} found. Run: python train.py first")
         sys.exit(1)
 
     config = neat.Config(
@@ -193,7 +196,7 @@ def watch_winner():
         CONFIG_PATH
     )
 
-    with open('winner.pkl', 'rb') as f:
+    with open(winner, 'rb') as f:
         winner = pickle.load(f)
 
     net = neat.nn.FeedForwardNetwork.create(winner, config)
