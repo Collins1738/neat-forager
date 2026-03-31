@@ -35,7 +35,7 @@ BAR_LOW = (220, 80, 80)
 SENSOR_COLOR = (255, 200, 50, 60)
 
 
-def draw_panel(surface, font, small_font, generation, fitness, energy, food_eaten, step, steps_total, species_count, best_fitness):
+def draw_panel(surface, font, small_font, generation, fitness, energy, food_eaten, step, steps_total, species_count, best_fitness, max_energy=None):
     panel_x = GRID_SIZE * CELL_SIZE
     pygame.draw.rect(surface, PANEL_BG, (panel_x, 0, PANEL_WIDTH, HEIGHT))
     pygame.draw.line(surface, GRID_LINE, (panel_x, 0), (panel_x, HEIGHT), 2)
@@ -79,8 +79,9 @@ def draw_panel(surface, font, small_font, generation, fitness, energy, food_eate
     bar_w = PANEL_WIDTH - 32
     bar_h = 14
     pygame.draw.rect(surface, BAR_BG, (panel_x + 16, y, bar_w, bar_h), border_radius=4)
-    fill = int(bar_w * max(0, energy) / INITIAL_ENERGY)
-    bar_color = BAR_ENERGY if energy > INITIAL_ENERGY * 0.3 else BAR_LOW
+    _max_e = max_energy or INITIAL_ENERGY
+    fill = int(bar_w * max(0, energy) / _max_e)
+    bar_color = BAR_ENERGY if energy > _max_e * 0.3 else BAR_LOW
     if fill > 0:
         pygame.draw.rect(surface, bar_color, (panel_x + 16, y, fill, bar_h), border_radius=4)
     y += bar_h + 20
@@ -102,7 +103,7 @@ def run_visual(net, generation=1, stats=None):
     font = pygame.font.SysFont("monospace", 15)
     small_font = pygame.font.SysFont("monospace", 12)
 
-    steps_total = STEPS
+    steps_total = 1000
     paused = [False]
     running = [True]
     food_eaten = [0]
@@ -178,7 +179,7 @@ def run_visual(net, generation=1, stats=None):
 
         pygame.display.flip()
 
-    run_simulation(net, step_callback=step_callback)
+    run_simulation(net, step_callback=step_callback, steps=1000)
     pygame.quit()
 
 
@@ -207,7 +208,8 @@ def watch_winner():
 def train_and_watch():
     """Train with live visualization of best agent each generation."""
     import neat
-    from simulation import run_simulation
+    from multiprocessing import Pool
+    from train import eval_genome
 
     config = neat.Config(
         neat.DefaultGenome,
@@ -227,10 +229,12 @@ def train_and_watch():
     def eval_and_show(genomes, config):
         generation[0] += 1
 
-        # Evaluate all
-        for genome_id, genome in genomes:
-            net = neat.nn.FeedForwardNetwork.create(genome, config)
-            genome.fitness = run_simulation(net)
+        # Evaluate all genomes in parallel (averaged over 3 runs)
+        with Pool() as pool:
+            results = pool.map(eval_genome, [(gid, g, config) for gid, g in genomes])
+        fitness_map = dict(results)
+        for gid, genome in genomes:
+            genome.fitness = fitness_map[gid]
 
         # Show best agent of this generation
         best = max(genomes, key=lambda g: g[1].fitness)

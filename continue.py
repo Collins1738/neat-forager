@@ -7,15 +7,25 @@ import neat
 import pickle
 import copy
 import os
+from multiprocessing import Pool
 from simulation import run_simulation
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'forager_config.txt')
 
 
+def eval_genome(args):
+    genome_id, genome, config = args
+    net = neat.nn.FeedForwardNetwork.create(genome, config)
+    scores = [run_simulation(net) for _ in range(3)]
+    return genome_id, sum(scores) / len(scores)
+
+
 def eval_genomes(genomes, config):
-    for genome_id, genome in genomes:
-        net = neat.nn.FeedForwardNetwork.create(genome, config)
-        genome.fitness = run_simulation(net)
+    with Pool() as pool:
+        results = pool.map(eval_genome, [(gid, g, config) for gid, g in genomes])
+    fitness_map = dict(results)
+    for gid, genome in genomes:
+        genome.fitness = fitness_map[gid]
 
 
 def eval_and_show(generation_counter):
@@ -25,9 +35,11 @@ def eval_and_show(generation_counter):
     def _eval(genomes, config):
         generation_counter[0] += 1
 
-        for genome_id, genome in genomes:
-            net = neat.nn.FeedForwardNetwork.create(genome, config)
-            genome.fitness = run_simulation(net)
+        with Pool() as pool:
+            results = pool.map(eval_genome, [(gid, g, config) for gid, g in genomes])
+        fitness_map = dict(results)
+        for gid, genome in genomes:
+            genome.fitness = fitness_map[gid]
 
         best = max(genomes, key=lambda g: g[1].fitness)
         best_net = neat.nn.FeedForwardNetwork.create(best[1], config)
@@ -41,20 +53,17 @@ def seed_population_from_winner(pop, winner, config):
     """Replace the starting population with mutated copies of the winner."""
     new_population = {}
     for genome_id in pop.population:
-        # Deep copy the winner
         child = copy.deepcopy(winner)
         child.key = genome_id
         child.fitness = None
-        # Mutate it so there's variation (otherwise all clones = no evolution)
         child.mutate(config.genome_config)
         new_population[genome_id] = child
 
     pop.population = new_population
-    # Re-speciate so NEAT knows how to group them
     pop.species.speciate(config, pop.population, pop.generation)
 
 
-def run(generations=50, visual=False):
+def run(generations=200, visual=False):
     if not os.path.exists('winner.pkl'):
         print("❌ No winner.pkl found. Run train.py first.")
         return

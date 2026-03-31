@@ -7,11 +7,11 @@ import random
 import math
 
 GRID_SIZE = 30
-FOOD_COUNT = 15
-STEPS = 300
-INITIAL_ENERGY = 150
+FOOD_COUNT = 4
+STEPS = 1000
+INITIAL_ENERGY = 50
 MOVE_COST = 1
-EAT_GAIN = 40
+EAT_GAIN = 15
 
 
 def get_wall_sensors(agent):
@@ -116,7 +116,7 @@ def get_sensors(agent, food_list):
     return sensors
 
 
-def run_simulation(net, step_callback=None):
+def run_simulation(net, step_callback=None, steps=None, initial_energy=None):
     """
     Run one agent's lifetime. Returns fitness score.
 
@@ -130,12 +130,13 @@ def run_simulation(net, step_callback=None):
             for _ in range(FOOD_COUNT)]
 
     fitness = 0
-    energy = INITIAL_ENERGY
+    max_energy = initial_energy if initial_energy is not None else INITIAL_ENERGY
+    energy = max_energy
     recent = []    # track last 4 positions for revisit penalty
     visited = []   # last 20 positions for visited sensors
     trail = []     # last 20 positions for visualizer trail
 
-    for step in range(STEPS):
+    for step in range(steps or STEPS):
         if energy <= 0 or not food:
             break
 
@@ -180,7 +181,7 @@ def run_simulation(net, step_callback=None):
             if agent[0] == f[0] and agent[1] == f[1]:
                 food.remove(f)
                 fitness += 10
-                energy = min(INITIAL_ENERGY, energy + EAT_GAIN)
+                energy = min(max_energy, energy + EAT_GAIN)
                 # Respawn food elsewhere
                 food.append([random.randint(0, GRID_SIZE - 1), random.randint(0, GRID_SIZE - 1)])
 

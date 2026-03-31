@@ -6,16 +6,25 @@ Good for fast training. Saves the winner genome to winner.pkl
 import neat
 import pickle
 import os
+from multiprocessing import Pool
 from simulation import run_simulation
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'forager_config.txt')
 
 
+def eval_genome(args):
+    genome_id, genome, config = args
+    net = neat.nn.FeedForwardNetwork.create(genome, config)
+    scores = [run_simulation(net) for _ in range(3)]
+    return genome_id, sum(scores) / len(scores)
+
+
 def eval_genomes(genomes, config):
-    for genome_id, genome in genomes:
-        net = neat.nn.FeedForwardNetwork.create(genome, config)
-        scores = [run_simulation(net) for _ in range(3)]
-        genome.fitness = sum(scores) / len(scores)
+    with Pool() as pool:
+        results = pool.map(eval_genome, [(gid, g, config) for gid, g in genomes])
+    fitness_map = dict(results)
+    for gid, genome in genomes:
+        genome.fitness = fitness_map[gid]
 
 
 def run(generations=50):
