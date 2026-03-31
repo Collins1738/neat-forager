@@ -164,7 +164,7 @@ def run_simulation(net, step_callback=None):
         if pos in recent:
             fitness -= 0.2
         recent.append(pos)
-        if len(recent) > 4:
+        if len(recent) > 10:
             recent.pop(0)
 
         # Update trail for visualizer and visited sensors

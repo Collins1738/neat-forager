@@ -14,7 +14,8 @@ CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'forager_config.txt')
 def eval_genomes(genomes, config):
     for genome_id, genome in genomes:
         net = neat.nn.FeedForwardNetwork.create(genome, config)
-        genome.fitness = run_simulation(net)
+        scores = [run_simulation(net) for _ in range(3)]
+        genome.fitness = sum(scores) / len(scores)
 
 
 def run(generations=50):
