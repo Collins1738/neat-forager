@@ -144,4 +144,4 @@ def run_simulation(net, step_callback=None):
     if energy <= 0:
         fitness -= 5
 
-    return max(0, fitness)
+    return fitness
