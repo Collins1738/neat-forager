@@ -164,7 +164,7 @@ def run_simulation(net, step_callback=None):
         if pos in recent:
             fitness -= 0.2
         recent.append(pos)
-        if len(recent) > 10:
+        if len(recent) > 4:
             recent.pop(0)
 
         # Update trail for visualizer and visited sensors
@@ -172,7 +172,7 @@ def run_simulation(net, step_callback=None):
         if len(trail) > 20:
             trail.pop(0)
         visited.append((agent[0], agent[1]))
-        if len(visited) > 20:
+        if len(visited) > 4:
             visited.pop(0)
 
         # Check for food
